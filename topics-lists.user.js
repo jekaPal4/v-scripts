@@ -3,7 +3,7 @@
 // @namespace       Violentmonkey Scripts
 // @description     Cписки постов для выгрузки в файл
 // @author          jeka
-// @version         0.1.1
+// @version         0.1.2
 // @match           https://ok.ru/*
 // @updateURL       https://raw.githubusercontent.com/jekaPal4/v-scripts/main/topics-lists.user.js
 // @downloadURL     https://raw.githubusercontent.com/jekaPal4/v-scripts/main/topics-lists.user.js
@@ -36,7 +36,7 @@
     };
 
 
-    const topicsLists = JSON.parse(GM_getValue('topicsLists', '{"первый":{}}'));
+    const topicsLists = JSON.parse(GM_getValue('topicsLists', '{"общий":{}}'));
 
     function saveListsDb(){
         GM_setValue('topicsLists', JSON.stringify(topicsLists));
@@ -246,19 +246,27 @@
 
         switch (tasks[item-1].taskName) {
             case 'clear':
-                var selectedItem = lists.length>1 ? parseInt(prompt(getListsAsText(lists))): Number(confirm(`Очистить список "${lists[0]}"?`));
+                var selectedItem = lists.length>1 ? parseInt(prompt(getListsAsText(lists))): Number(confirm(`Очистить список ${lists[0]}?`));
                 if(!selectedItem || selectedItem>lists.length)return;
                 topicsLists[lists[selectedItem-1]] = {};
                 saveListsDb();
                 GM_notification(`Список "${lists[selectedItem-1]}" очищен.`);
                 break;
             case 'create':
-                var listName = prompt('Название нового списка:').trim();
+                let warnMsg = '';
+                while(1){
+                    var listName = prompt(warnMsg+'Название нового списка:').trim();
                 if(listName == '' || topicsLists[listName]) return;
+                    if(/[<>:"/\\|?*\x00-\x1F]/.test(listName) || /["\\\x00-\x1F]/.test(listName) || /^(CON|PRN|AUX|NUL|COM[1-9]|LPT[1-9])(\..*)?$/i.test(listName)){
+                        if(!warnMsg)warnMsg = 'Присутствуют недопустимые символы!\n';
+                        continue;
+                    }
                 topicsLists[listName] = {};
                 initBtnSaveList(listName);
                 saveListsDb();
                 GM_notification(`Список "${listName}" создан.`);
+                    break;
+                }
                 break;
             case 'remove':
                 var selectedItem = parseInt(prompt(getListsAsText(lists)));
@@ -299,7 +307,7 @@
                 const url = URL.createObjectURL(blob);
                 GM_download({
                     url: url,
-                    name: 'topics.json',
+                    name: listName.replace(/\s/g, '-')+'.json',
                     saveAs: true,
                     onload: function() {
                         URL.revokeObjectURL(url);
@@ -340,7 +348,7 @@
                         break;
                     case 'photo':
                         for (let i = 0; i < media.list.length; i++) {
-                            res[resInd].media.push({type: media.type, val: media.list[i] || '', photo_id: media.ids[i], label: media.labels[i]});
+                            res[resInd].media.push({type: media.type, url: media.list[i] || '', photo_id: media.ids[i], label: media.labels[i]});
                             if(media.gifs[i])res[resInd].media[res[resInd].media.length-1].mime = 'gif';
                         }
                         break;
